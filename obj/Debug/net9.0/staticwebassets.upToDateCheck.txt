@@ -1,0 +1,2 @@
+wwwroot\beverages.csv
+C:\Users\Darshana Raghu\Downloads\AspMCP-main\AspMCP-main\ServerMCP\wwwroot\beverages.csv

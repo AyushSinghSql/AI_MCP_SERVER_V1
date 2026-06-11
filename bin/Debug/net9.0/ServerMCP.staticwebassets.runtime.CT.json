@@ -1,0 +1,34 @@
+{
+  "ContentRoots": [
+    "/app/wwwroot/",
+    "/app/obj/Debug/net9.0/compressed/"
+  ],
+  "Root": {
+    "Children": {
+      "beverages.csv": {
+        "Children": null,
+        "Asset": {
+          "ContentRootIndex": 0,
+          "SubPath": "beverages.csv"
+        },
+        "Patterns": null
+      },
+      "beverages.csv.gz": {
+        "Children": null,
+        "Asset": {
+          "ContentRootIndex": 1,
+          "SubPath": "z8ke2t3ctt-xx1lmt63rq.gz"
+        },
+        "Patterns": null
+      }
+    },
+    "Asset": null,
+    "Patterns": [
+      {
+        "ContentRootIndex": 0,
+        "Pattern": "**",
+        "Depth": 0
+      }
+    ]
+  }
+}
