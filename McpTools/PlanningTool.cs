@@ -86,18 +86,41 @@ namespace MCPServer.MCPTools
             }
         }
 
+        // [McpServerTool, Description("Get Revenue Analysis For Project By Year")]
+        // public static async Task<string> GetRevenueAnalysisForProjectByTypeAndVersionAsync(string planId, string Year)
+        // {
+        //     try
+        //     {
+        //         return await PlanningService.GetRevenueAnalysisForProjectByTypeAndVersionAsync(planId, Year);
+        //     }
+        //     catch (Exception ex)
+        //     {
+        //         return $"Sorry, I couldn't fetch the revenue analysys for {planId}. ({ex.Message})";
+        //     }
+        // }
+
         [McpServerTool, Description("Get Revenue Analysis For Project By Year")]
-        public static async Task<string> GetRevenueAnalysisForProjectByTypeAndVersionAsync(string planId, string Year)
-        {
-            try
-            {
-                return await PlanningService.GetRevenueAnalysisForProjectByTypeAndVersionAsync(planId, Year);
-            }
-            catch (Exception ex)
-            {
-                return $"Sorry, I couldn't fetch the revenue analysys for {planId}. ({ex.Message})";
-            }
-        }
+public static async Task<string>
+GetRevenueAnalysisForProjectByTypeAndVersionAsync(
+    string planId,
+    string? Year = null)
+{
+    try
+    {
+        Year = string.IsNullOrWhiteSpace(Year)
+            ? DateTime.Now.Year.ToString()
+            : Year;
+
+        return await PlanningService
+            .GetRevenueAnalysisForProjectByTypeAndVersionAsync(
+                planId,
+                Year);
+    }
+    catch (Exception ex)
+    {
+        return $"Sorry, I couldn't fetch the revenue analysis for {planId}. ({ex.Message})";
+    }
+}
 
         ///[McpServerTool, Description("Update forecast using ProjectId, PlanType, and Version instead of PlId")]
         [McpServerTool, Description(@"
