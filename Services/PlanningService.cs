@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
+using ServerMCP.Models;
 
 public static class PlanningService
 {
@@ -623,100 +624,182 @@ Return ONLY valid HTML content.
         }
     }
 
-    //---------------------------------------------------------
-    // GEMINI CALL
-    //---------------------------------------------------------
 
-    //public static async Task<string>
-    //    CallGeminiAsync(
-    //    string prompt,
-    //    string data)
-    //{
-    //    //-----------------------------------------------------
-    //    // CONFIG VALUES
-    //    //-----------------------------------------------------
+    public static async Task<string> GetProjectFinancialsAsync(string projectID, string type, string? status = null)
+    {
+        try
+        {
+            var baseUrl = Configuration?["ApiSettings:PlanningApiUrl"];
 
-    //    var apiKey =
-    //        Configuration?["ApiSettings:GeminiApiKey"];
+            // Construct URL with query parameters
+            var query = $"projectID={Uri.EscapeDataString(projectID)}&type={Uri.EscapeDataString(type)}";
+            if (!string.IsNullOrWhiteSpace(status))
+            {
+                query += $"&status={Uri.EscapeDataString(status)}";
+            }
 
-    //    var model =
-    //        Configuration?["ApiSettings:GeminiModel"]
-    //        ?? "gemini-1.5-flash";
+            var url = $"{baseUrl}/api/AI/GetProjectFinacials?{query}";
 
-    //    if (string.IsNullOrWhiteSpace(apiKey))
-    //    {
-    //        throw new Exception(
-    //            "GeminiApiKey is missing in configuration.");
-    //    }
+            // Using local HttpClient as per requested pattern
+            using var httpClient = new HttpClient();
 
-    //    //-----------------------------------------------------
-    //    // URL
-    //    //-----------------------------------------------------
+            // Changing to GetAsync as requested
+            using var response = await httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
 
-    //    var url =
-    //        $"https://generativelanguage.googleapis.com/" +
-    //        $"v1beta/models/{model}:generateContent" +
-    //        $"?key={apiKey}";
+            var json = await response.Content.ReadAsStringAsync();
 
-    //    //-----------------------------------------------------
-    //    // REQUEST BODY
-    //    //-----------------------------------------------------
+            // Pass the raw JSON to the Gemini AI integration method
+            return await CallGeminiAsync(json);
+        }
+        catch (Exception ex)
+        {
+            return $"Error calling GetProjectFinancials API: {ex.Message}";
+        }
+    }
 
-    //    var requestBody = new
-    //    {
-    //        contents = new[]
-    //        {
-    //            new
-    //            {
-    //                parts = new[]
-    //                {
-    //                    new { text = prompt },
-    //                    new { text = data }
-    //                }
-    //            }
-    //        }
-    //    };
+    public static async Task<string>
+     CreateBudgetFromLatestEacAsync(
+     string projId)
+    {
+        var baseUrl =
+               Configuration?["ApiSettings:PlanningApiUrl"];
 
-    //    //-----------------------------------------------------
-    //    // API CALL
-    //    //-----------------------------------------------------
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            throw new Exception(
+                "PlanningApiUrl is missing in configuration.");
+        }
+        var url =
+            $"{baseUrl}/api/AI/project-eac-next-version?projId={Uri.EscapeDataString(projId)}";
 
-    //    using var response =
-    //        await httpClient.PostAsJsonAsync(
-    //            url,
-    //            requestBody);
+        using var client = new HttpClient();
 
-    //    if (!response.IsSuccessStatusCode)
-    //    {
-    //        var error =
-    //            await response.Content
-    //            .ReadAsStringAsync();
+        var response = await client.GetAsync(url);
 
-    //        throw new Exception(
-    //            $"Gemini API Error: {error}");
-    //    }
+        if (!response.IsSuccessStatusCode)
+        {
+            return await response.Content.ReadAsStringAsync();
+        }
 
-    //    //-----------------------------------------------------
-    //    // PARSE RESPONSE
-    //    //-----------------------------------------------------
+        return await response.Content.ReadAsStringAsync();
+    }
 
-    //    var json =
-    //        await response.Content
-    //        .ReadAsStringAsync();
+    public static async Task<string>
+GetProjectStatsAsync(string projId)
+    {
+        try
+        {
+            var baseUrl =
+               Configuration?["ApiSettings:PlanningApiUrl"];
 
-    //    using var doc =
-    //        JsonDocument.Parse(json);
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new Exception(
+                    "PlanningApiUrl is missing in configuration.");
+            }
+            var url =
+                $"{baseUrl}/api/AI/project-stats?projId={Uri.EscapeDataString(projId)}";
 
-    //    var text =
-    //        doc.RootElement
-    //        .GetProperty("candidates")[0]
-    //        .GetProperty("content")
-    //        .GetProperty("parts")[0]
-    //        .GetProperty("text")
-    //        .GetString();
+            using var httpClient = new HttpClient();
 
-    //    return text ?? "";
-    //}
+            var response = await httpClient.GetAsync(url);
+
+            var content =
+                await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return content;
+            }
+
+            return content;
+        }
+        catch (Exception ex)
+        {
+            return $"Error getting project stats: {ex.Message}";
+        }
+    }
+
+    public static async Task<string>
+ UpdateProjectPlanStatusAsync(
+     string projectId,
+     string status,
+     string? planType = null,
+     int? version = null)
+    {
+        try
+        {
+            var baseUrl =
+                Configuration?["ApiSettings:PlanningApiUrl"];
+
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                throw new Exception(
+                    "PlanningApiUrl is missing in configuration.");
+            }
+
+            var url =
+                $"{baseUrl}/api/AI/change-project-status";
+
+            var request =
+                new ChangeProjectStatusRequest
+                {
+                    ProjectId = projectId,
+                    PlanType = planType,
+                    Version = version,
+                    Status = status
+                };
+
+            using var httpClient = new HttpClient();
+
+            var response =
+                await httpClient.PutAsJsonAsync(
+                    url,
+                    request);
+
+            var content =
+                await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return content;
+            }
+
+            return content;
+        }
+        catch (Exception ex)
+        {
+            return $"Error updating project status: {ex.Message}";
+        }
+    }
+
+    public static async Task<string>
+GetEmployeePerformanceAsync(
+    string employeeId)
+    {
+        try
+        {
+            var baseUrl =
+                Configuration?["ApiSettings:PlanningApiUrl"];
+
+            var url =
+                $"{baseUrl}/api/AI/employee-performance" +
+                $"?employeeId={Uri.EscapeDataString(employeeId)}";
+
+            using var httpClient = new HttpClient();
+
+            var response =
+                await httpClient.GetAsync(url);
+
+            return await response.Content
+                .ReadAsStringAsync();
+        }
+        catch (Exception ex)
+        {
+            return ex.Message;
+        }
+    }
 
     public static async Task<string> CallGeminiAsync(string data)
     {

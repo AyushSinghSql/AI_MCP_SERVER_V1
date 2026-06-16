@@ -16,4 +16,15 @@
 
         public string PeriodType { get; set; } = "Monthly";
     }
+
+    public class ChangeProjectStatusRequest
+    {
+        public string ProjectId { get; set; } = string.Empty;
+
+        public string? PlanType { get; set; }
+
+        public int? Version { get; set; }
+
+        public string Status { get; set; } = string.Empty;
+    }
 }

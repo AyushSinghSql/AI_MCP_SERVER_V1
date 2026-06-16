@@ -172,5 +172,170 @@ Examples:
             }
         }
 
+
+        [McpServerTool, Description(@"
+Get comprehensive financial data for a project. 
+Returns a list containing:
+- proj_f_tot_amt: Total project funding amount
+- projectStatus: Current status (e.g., At Risk, On Track)
+- budgetRevenue: Planned budget revenue
+- forecastRevenue: Forecasted revenue
+- actualRevenue: Realized actual revenue
+- variance: Calculated variance between plan and actuals
+")]
+public static async Task<string> GetProjectFinancialsAsync(
+    string projectID,
+    string type,
+    string? status = null)
+{
+    try
+    {
+        // The implementation assumes the service parses the JSON response 
+        // containing the list of financial objects provided.
+        return await PlanningService.GetProjectFinancialsAsync(projectID, type, status);
+    }
+    catch (Exception ex)
+    {
+        return $"Sorry, I couldn't fetch the financial details for project {projectID}. ({ex.Message})";
+    }
+}
+
+
+
+        [McpServerTool,
+Description(@"
+Create the next Budget version from the latest approved/final EAC version.
+
+Input:
+- projId: Project Identifier
+
+Process:
+- Finds the latest EAC version where FinalVersion = true OR IsApproved = true
+- Creates the next Budget version
+- Returns the newly created version details and project summary
+
+Examples:
+- Create budget version for project P1001
+- Generate next budget from latest EAC for project ABC123
+- Create next budget version for project P200
+")]
+        public static async Task<string> CreateBudgetFromLatestEacAsync(
+   string projId)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(projId))
+                {
+                    return "Project Id is required.";
+                }
+
+                return await PlanningService
+                    .CreateBudgetFromLatestEacAsync(projId);
+            }
+            catch (Exception ex)
+            {
+                return $"Sorry, I couldn't create the budget version for project {projId}. ({ex.Message})";
+            }
+        }
+
+        [McpServerTool,
+ Description(@"
+Get project planning statistics.
+
+Returns:
+- Budget Count
+- EAC Count
+- Final Version
+- Latest Approved EAC
+- Project Status
+- Project detail like revenue, funding, forecast reveue, actual revenue, etc..
+
+Example:
+- Show stats for project P1001
+- Get project version summary for ABC123
+")]
+        public static async Task<string> GetProjectStatsAsync(
+    string projId)
+        {
+            try
+            {
+                return await PlanningService
+                    .GetProjectStatsAsync(projId);
+            }
+            catch (Exception ex)
+            {
+                return $"Unable to get project statistics. ({ex.Message})";
+            }
+        }
+
+        [McpServerTool,
+  Description(@"
+Update project status.
+
+Required:
+- projectId
+
+Optional:
+- planType
+- version
+- status
+
+If planType or version are not provided, the system will use the latest Final/Approved version for the project.
+
+Examples:
+- Approve project P100
+- Conclude project P100
+- Approve latest EAC version for project P100
+- Update project P100 status to Approved
+")]
+        public static async Task<string>
+ UpdateProjectPlanStatusAsync(
+     string projectId,
+     string? status = null,
+     string? planType = null,
+     int? version = null)
+        {
+            return await PlanningService
+                .UpdateProjectPlanStatusAsync(
+                    projectId,
+                    status,
+                    planType,
+                    version);
+        }
+
+
+        [McpServerTool,
+Description(@"
+Get complete employee performance summary.
+
+Inputs:
+- EmployeeId
+
+Returns:
+- Employee Profile
+- Forecast Hours
+- Forecast Cost
+- Burden Cost
+- Actual Hours
+- Actual Cost
+- Revenue
+- Project Count
+")]
+        public static async Task<string>
+GetEmployeePerformanceAsync(
+    string employeeId)
+        {
+            try
+            {
+                return await PlanningService
+                    .GetEmployeePerformanceAsync(
+                        employeeId);
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }
+
     }
 }
