@@ -1,5 +1,8 @@
-﻿using System.Text.Json;
+﻿using System;
 using System.ComponentModel;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using ModelContextProtocol.Server;
 using ServerMCP.Models;
 
@@ -8,334 +11,184 @@ namespace MCPServer.MCPTools
     [McpServerToolType]
     public static class PlanningTool
     {
-        static readonly HttpClient httpClient = new();
-
-        [McpServerTool, Description("Get the Employee Schedule for empl_id")]
-        public static async Task<string> GetEmployeeScheduleAsync(string empl_id)
-        {
-            //var url = $"https://planning-api-dev.onrender.com/Forecast/GetEmployeeScheduleAsync/{Uri.EscapeDataString(empl_id)}";
-
-            try
-            {
-                if (empl_id.ToUpper() == "ALL")
-                {
-                    empl_id = null;
-                }
-
-                return await PlanningService.GetEmployeeScheduleAsync(empl_id);
-            }
-            catch (Exception ex)
-            {
-                return $"Sorry, I couldn't fetch the weather for {empl_id}. ({ex.Message})";
-            }
-        }
-
-        //        "Generate variance report for project ABC123 budget version 1 vs EAC version 3"
-        //"Show BUD vs EAC variance for project P100"
-        //"Create financial variance dashboard for version 2 and version 5"
-        //"Variance report for all projects"
-        [McpServerTool, Description("Generate Budget vs EAC variance report for a project")]
-        public static async Task<string> GenerateVarianceReportAsync(
-            string proj_id,
-            string Type1,
-            int Type1_version,
-            string Type2,
-            int Type2_version)
-        {
-            try
-            {
-                //-----------------------------------------
-                // HANDLE NULL / ALL
-                //-----------------------------------------
-
-                if (!string.IsNullOrWhiteSpace(proj_id) &&
-                    proj_id.ToUpper() == "ALL")
-                {
-                    proj_id = null;
-                }
-
-                //-----------------------------------------
-                // VALIDATION
-                //-----------------------------------------
-
-                if (Type1_version <= 0)
-                {
-                    return "Budget version is required.";
-                }
-
-                if (Type2_version <= 0)
-                {
-                    return "EAC version is required.";
-                }
-
-                //-----------------------------------------
-                // CALL SERVICE
-                //-----------------------------------------
-
-                return await PlanningService.VarianceAsync(
-                     proj_id,
-            Type1,
-            Type1_version,
-            Type2,
-            Type2_version);
-            }
-            catch (Exception ex)
-            {
-                return
-                    $"Sorry, I couldn't generate the variance report. ({ex.Message})";
-            }
-        }
-
-        // [McpServerTool, Description("Get Revenue Analysis For Project By Year")]
-        // public static async Task<string> GetRevenueAnalysisForProjectByTypeAndVersionAsync(string planId, string Year)
-        // {
-        //     try
-        //     {
-        //         return await PlanningService.GetRevenueAnalysisForProjectByTypeAndVersionAsync(planId, Year);
-        //     }
-        //     catch (Exception ex)
-        //     {
-        //         return $"Sorry, I couldn't fetch the revenue analysys for {planId}. ({ex.Message})";
-        //     }
-        // }
-
-        [McpServerTool, Description("Get Revenue Analysis For Project By Year")]
-public static async Task<string>
-GetRevenueAnalysisForProjectByTypeAndVersionAsync(
-    string planId,
-    string? Year = null)
-{
-    try
-    {
-        Year = string.IsNullOrWhiteSpace(Year)
-            ? DateTime.Now.Year.ToString()
-            : Year;
-
-        return await PlanningService
-            .GetRevenueAnalysisForProjectByTypeAndVersionAsync(
-                planId,
-                Year);
-    }
-    catch (Exception ex)
-    {
-        return $"Sorry, I couldn't fetch the revenue analysis for {planId}. ({ex.Message})";
-    }
-}
-
-        ///[McpServerTool, Description("Update forecast using ProjectId, PlanType, and Version instead of PlId")]
+        // =========================================================================
+        // 1. GET BUDGET ASSUMPTIONS
+        // =========================================================================
         [McpServerTool, Description(@"
-Use this tool to update forecasted hours and amount using ProjectId, PlanType, and Version.
+Fetches financial and budget assumption details (such as growth rates, escalation rates, inflation parameters, calculation methods, and effective date ranges) across the property organizational hierarchy.
 
-Inputs:
-- ProjectId: Project identifier
-- PlanType: Type of plan (e.g., Forecast, Budget)
-- Version: Plan version
-- SourceYear → TargetYear
-- SourcePeriod → TargetPeriod
-- Percentage: Optional increase
-- PeriodType: Monthly / Quarterly / HalfYearly
+When to Use:
+- Use when the user asks about budget assumptions, calculation methods, financial parameters, or escalation rules.
 
-Rules:
-- Monthly: Month to Month (1–12)
-- Quarterly: Q1–Q4
-- HalfYearly: H1–H2
-- Matches by Employee, PLC, Month, and DctId
-- Updates only if target is empty
-- Inserts if record does not exist
+Parameters & Logic:
+- Optional Filters: entityId, propertyId, buildingId, unitId, leaseId, tenantId.
+- Empty Inputs Rule: If NO IDs are provided (all parameters empty), the API returns ALL budget assumptions across the entire system.
+- Match Rule: If specific IDs are provided and matched, returns specific assumption details for that level.
+- Fallback Rule: If specific IDs are provided BUT NO MATCH IS FOUND, the API automatically falls back to returning the Global Default assumptions (where all IDs are null).
 
 Examples:
-- Copy Jan to Feb with 2%
-- Move Q1 to Q2
-- Shift H1 to H2 with 5%
+- 'What are the budget assumptions for entity ENT001?'
+- 'Show me all budget assumptions'
+- 'Get calculation methods for unit U-102 and lease L-889'
 ")]
-        public static async Task<string> UpdateForecastByProjectAsync(ForecastShiftByProjectRequest request)
+        public static async Task<string> GetBudgetAssumptionsAsync(
+            [Description("Optional Entity Identifier")] string? entityId = null,
+            [Description("Optional Property Identifier")] string? propertyId = null,
+            [Description("Optional Building Identifier")] string? buildingId = null,
+            [Description("Optional Unit Identifier")] string? unitId = null,
+            [Description("Optional Lease Identifier")] string? leaseId = null,
+            [Description("Optional Tenant Identifier")] string? tenantId = null,
+            [Description("Page number for pagination (default 0 for all records)")] int pageNumber = 0,
+            [Description("Page size for pagination (default 10)")] int pageSize = 10)
         {
-            var url = "https://planning-api-dev.onrender.com/api/ForecastReport/UpdateForecastByProject";
-            url = "https://localhost:58652/api/ForecastReport/UpdateForecastByProject";
-
-
-
             try
             {
-                using var httpClient = new HttpClient();
+                // Normalize "ALL" string from AI to null
+                entityId = CleanInput(entityId);
+                propertyId = CleanInput(propertyId);
+                buildingId = CleanInput(buildingId);
+                unitId = CleanInput(unitId);
+                leaseId = CleanInput(leaseId);
+                tenantId = CleanInput(tenantId);
 
-                var response = await httpClient.PostAsJsonAsync(url, request);
-
-                if (!response.IsSuccessStatusCode)
-                    return $"Failed: {response.StatusCode}";
-
-                return await response.Content.ReadAsStringAsync();
+                return await PlanningService.GetBudgetAssumptionsAsync(
+                    entityId, propertyId, buildingId, unitId, leaseId, tenantId, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
-                return $"Error: {ex.Message}";
+                return $"Error fetching budget assumptions: ({ex.Message})";
             }
         }
 
-
+        // =========================================================================
+        // 2. GET MARKET RENT UNITS
+        // =========================================================================
         [McpServerTool, Description(@"
-Get comprehensive financial data for a project. 
-Returns a list containing:
-- proj_f_tot_amt: Total project funding amount
-- projectStatus: Current status (e.g., At Risk, On Track)
-- budgetRevenue: Planned budget revenue
-- forecastRevenue: Forecasted revenue
-- actualRevenue: Realized actual revenue
-- variance: Calculated variance between plan and actuals
-")]
-public static async Task<string> GetProjectFinancialsAsync(
-    string projectID,
-    string type,
-    string? status = null)
-{
-    try
-    {
-        // The implementation assumes the service parses the JSON response 
-        // containing the list of financial objects provided.
-        return await PlanningService.GetProjectFinancialsAsync(projectID, type, status);
-    }
-    catch (Exception ex)
-    {
-        return $"Sorry, I couldn't fetch the financial details for project {projectID}. ({ex.Message})";
-    }
-}
+Queries and filters property units based on market rent pricing, occupancy status, unit type, and square footage area constraints.
 
+When to Use:
+- Use when users ask to search or filter units by rental price ranges, unit availability, unit classifications, or area/size.
 
-
-        [McpServerTool,
-Description(@"
-Create the next Budget version from the latest approved/final EAC version.
-
-Input:
-- projId: Project Identifier
-
-Process:
-- Finds the latest EAC version where FinalVersion = true OR IsApproved = true
-- Creates the next Budget version
-- Returns the newly created version details and project summary
+Parameters:
+- propertyId: Optional property filter.
+- minRent / maxRent: Numerical limits for market rental rates (e.g., maxRent = 4000).
+- unitType: Type of unit (e.g., Office, Retail, Residential, Commercial).
+- unitStatus: Current status (e.g., Vacant, Occupied, Under Maintenance).
+- minArea / maxArea: Square footage or floor area limits.
 
 Examples:
-- Create budget version for project P1001
-- Generate next budget from latest EAC for project ABC123
-- Create next budget version for project P200
+- 'Find all vacant units with market rent under $4000/month'
+- 'Show commercial retail units between 1000 and 2500 sq ft'
+- 'List occupied office units in property P-101'
 ")]
-        public static async Task<string> CreateBudgetFromLatestEacAsync(
-   string projId)
+        public static async Task<string> GetMarketRentUnitsAsync(
+            [Description("Optional Property Identifier")] string? propertyId = null,
+            [Description("Optional Minimum Rent price filter")] decimal? minRent = null,
+            [Description("Optional Maximum Rent price filter")] decimal? maxRent = null,
+            [Description("Optional Unit Type classification (e.g., Office, Retail, Commercial)")] string? unitType = null,
+            [Description("Optional Unit Status (e.g., Vacant, Occupied)")] string? unitStatus = null,
+            [Description("Optional Minimum Area size in square feet")] decimal? minArea = null,
+            [Description("Optional Maximum Area size in square feet")] decimal? maxArea = null,
+            [Description("Page number (default 0)")] int pageNumber = 0,
+            [Description("Page size (default 10)")] int pageSize = 10)
         {
             try
             {
-                if (string.IsNullOrWhiteSpace(projId))
-                {
-                    return "Project Id is required.";
-                }
+                propertyId = CleanInput(propertyId);
+                unitType = CleanInput(unitType);
+                unitStatus = CleanInput(unitStatus);
 
-                return await PlanningService
-                    .CreateBudgetFromLatestEacAsync(projId);
+                return await PlanningService.GetMarketRentUnitsAsync(
+                    propertyId, minRent, maxRent, unitType, unitStatus, minArea, maxArea, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
-                return $"Sorry, I couldn't create the budget version for project {projId}. ({ex.Message})";
+                return $"Error fetching market rent units: ({ex.Message})";
             }
         }
 
-        [McpServerTool,
- Description(@"
-Get project planning statistics.
+        // =========================================================================
+        // 3. GET EXPIRING LEASES
+        // =========================================================================
+        [McpServerTool, Description(@"
+Retrieves a list of lease agreements that are scheduled to expire within a specified time horizon (in months).
 
-Returns:
-- Budget Count
-- EAC Count
-- Final Version
-- Latest Approved EAC
-- Project Status
-- Project detail like revenue, funding, forecast reveue, actual revenue, etc..
+When to Use:
+- Use when users inquire about upcoming lease expirations, lease renewal schedules, or tenant turnover risks within a given timeframe.
 
-Example:
-- Show stats for project P1001
-- Get project version summary for ABC123
-")]
-        public static async Task<string> GetProjectStatsAsync(
-    string projId)
-        {
-            try
-            {
-                return await PlanningService
-                    .GetProjectStatsAsync(projId);
-            }
-            catch (Exception ex)
-            {
-                return $"Unable to get project statistics. ({ex.Message})";
-            }
-        }
-
-        [McpServerTool,
-  Description(@"
-Update project status.
-
-Required:
-- projectId
-
-Optional:
-- planType
-- version
-- status
-
-If planType or version are not provided, the system will use the latest Final/Approved version for the project.
+Parameters:
+- propertyId: Optional filter for a specific property.
+- monthsWithin: Number of months into the future to check for expiring leases (e.g., 3, 6, 12 months). Default is 6 months.
 
 Examples:
-- Approve project P100
-- Conclude project P100
-- Approve latest EAC version for project P100
-- Update project P100 status to Approved
+- 'Show all leases expiring in the next 6 months'
+- 'Which leases in property P-200 are expiring within 30 days?'
+- 'Get lease expiration report for the next 12 months'
 ")]
-        public static async Task<string>
- UpdateProjectPlanStatusAsync(
-     string projectId,
-     string? status = null,
-     string? planType = null,
-     int? version = null)
-        {
-            return await PlanningService
-                .UpdateProjectPlanStatusAsync(
-                    projectId,
-                    status,
-                    planType,
-                    version);
-        }
-
-
-        [McpServerTool,
-Description(@"
-Get complete employee performance summary.
-
-Inputs:
-- EmployeeId
-
-Returns:
-- Employee Profile
-- Forecast Hours
-- Forecast Cost
-- Burden Cost
-- Actual Hours
-- Actual Cost
-- Revenue
-- Project Count
-")]
-        public static async Task<string>
-GetEmployeePerformanceAsync(
-    string employeeId)
+        public static async Task<string> GetExpiringLeasesAsync(
+            [Description("Optional Property Identifier")] string? propertyId = null,
+            [Description("Number of upcoming months to check for lease expirations (default 6 months)")] int monthsWithin = 6,
+            [Description("Page number (default 0)")] int pageNumber = 0,
+            [Description("Page size (default 10)")] int pageSize = 10)
         {
             try
             {
-                return await PlanningService
-                    .GetEmployeePerformanceAsync(
-                        employeeId);
+                propertyId = CleanInput(propertyId);
+
+                return await PlanningService.GetExpiringLeasesAsync(
+                    propertyId, monthsWithin, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
-                return ex.Message;
+                return $"Error fetching expiring leases: ({ex.Message})";
             }
         }
 
+        // =========================================================================
+        // 4. GET VACANT UNITS
+        // =========================================================================
+        [McpServerTool, Description(@"
+Retrieves a standardized report of all currently un-leased / vacant units for a given property or across all properties.
+
+When to Use:
+- Use when the user asks for vacant unit availability reports, un-occupied unit listings, or general vacancy statistics.
+
+Parameters:
+- propertyId: Optional property identifier to filter vacant spaces.
+
+Examples:
+- 'Show all vacant units for property P-100'
+- 'List all currently available vacant spaces'
+- 'Get vacancy listing'
+")]
+        public static async Task<string> GetVacantUnitsAsync(
+            [Description("Optional Property Identifier")] string? propertyId = null,
+            [Description("Page number (default 0)")] int pageNumber = 0,
+            [Description("Page size (default 10)")] int pageSize = 10)
+        {
+            try
+            {
+                propertyId = CleanInput(propertyId);
+
+                return await PlanningService.GetVacantUnitsAsync(
+                    propertyId, pageNumber, pageSize);
+            }
+            catch (Exception ex)
+            {
+                return $"Error fetching vacant units: ({ex.Message})";
+            }
+        }
+
+        // =========================================================================
+        // HELPER UTILITIES
+        // =========================================================================
+        private static string? CleanInput(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+            return value.Trim();
+        }
     }
 }
