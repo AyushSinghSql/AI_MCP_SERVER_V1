@@ -224,6 +224,6 @@ public static class PlanningService
     // Optional helper method to pass responses through if needed
     public static async Task<string> CallGeminiAsync(string data)
     {
-        return await Task.FromResult(data ?? "");
+        return data;
     }
 }
