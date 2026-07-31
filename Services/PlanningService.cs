@@ -124,7 +124,7 @@ public static class PlanningService
             if (maxArea.HasValue)
                 queryBuilder.Append($"&maxArea={maxArea.Value}");
 
-            var url = $"{baseUrl}/api/AI/market-rent-units{queryBuilder}";
+            var url = $"{baseUrl}/api/AI/market-rent{queryBuilder}";
 
             using var client = new HttpClient();
             using var response = await client.GetAsync(url);
@@ -148,17 +148,18 @@ public static class PlanningService
     // 3. GET EXPIRING LEASES
     //---------------------------------------------------------
     public static async Task<string> GetExpiringLeasesAsync(
-        string? propertyId = null,
-        int monthsWithin = 6,
-        int pageNumber = 0,
-        int pageSize = 10)
+    string? propertyId = null,
+    int value = 6,
+    string timeUnit = "months",
+    int pageNumber = 0,
+    int pageSize = 10)
     {
         try
         {
             var baseUrl = GetBaseUrl();
 
             var queryBuilder = new StringBuilder();
-            queryBuilder.Append($"?monthsWithin={monthsWithin}&pageNumber={pageNumber}&pageSize={pageSize}");
+            queryBuilder.Append($"?value={value}&timeUnit={Uri.EscapeDataString(timeUnit)}&pageNumber={pageNumber}&pageSize={pageSize}");
 
             if (!string.IsNullOrWhiteSpace(propertyId))
                 queryBuilder.Append($"&propertyId={Uri.EscapeDataString(propertyId)}");

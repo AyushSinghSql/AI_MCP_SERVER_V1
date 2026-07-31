@@ -110,33 +110,30 @@ Examples:
         // =========================================================================
         // 3. GET EXPIRING LEASES
         // =========================================================================
-        [McpServerTool, Description(@"
-Retrieves a list of lease agreements that are scheduled to expire within a specified time horizon (in months).
-
-When to Use:
-- Use when users inquire about upcoming lease expirations, lease renewal schedules, or tenant turnover risks within a given timeframe.
-
-Parameters:
-- propertyId: Optional filter for a specific property.
-- monthsWithin: Number of months into the future to check for expiring leases (e.g., 3, 6, 12 months). Default is 6 months.
-
-Examples:
-- 'Show all leases expiring in the next 6 months'
-- 'Which leases in property P-200 are expiring within 30 days?'
-- 'Get lease expiration report for the next 12 months'
-")]
+        [McpServerTool, Description(@"Retrieves a list of lease agreements that are scheduled to expire within a specified time horizon (e.g., days, weeks, months, or years). When to Use:- Use when users inquire about upcoming lease expirations, lease renewal schedules, or tenant turnover risks within a given timeframe. Parameters:- propertyId: Optional filter for a specific property.- value: The numerical value for the time horizon (default 6).- timeUnit: The unit of time ('days', 'weeks', 'months', 'years'). Default is 'months'.")]
         public static async Task<string> GetExpiringLeasesAsync(
-            [Description("Optional Property Identifier")] string? propertyId = null,
-            [Description("Number of upcoming months to check for lease expirations (default 6 months)")] int monthsWithin = 6,
-            [Description("Page number (default 0)")] int pageNumber = 0,
-            [Description("Page size (default 10)")] int pageSize = 10)
+    [Description("Optional Property Identifier")] string? propertyId = null,
+    [Description("Numerical value for the timeframe (e.g., 30 for days, 6 for months)")] int value = 6,
+    [Description("Unit of time: 'days', 'weeks', 'months', or 'years'")] string timeUnit = "months",
+    [Description("Page number (default 0)")] int pageNumber = 0,
+    [Description("Page size (default 10)")] int pageSize = 10)
         {
             try
             {
                 propertyId = CleanInput(propertyId);
 
+                // Normalize days/weeks down to months or pass them if your backend supports it
+                // Example conversion if backend only accepts months:
+                //int calculatedMonths = timeUnit.ToLower() switch
+                //{
+                //    "days" or "day" => Math.Max(1, (int)Math.Ceiling(value / 30.0)),
+                //    "weeks" or "week" => Math.Max(1, (int)Math.Ceiling(value / 4.0)),
+                //    "years" or "year" => value * 12,
+                //    _ => value // default to months
+                //};
+
                 return await PlanningService.GetExpiringLeasesAsync(
-                    propertyId, monthsWithin, pageNumber, pageSize);
+                    propertyId, value, timeUnit, pageNumber, pageSize);
             }
             catch (Exception ex)
             {
