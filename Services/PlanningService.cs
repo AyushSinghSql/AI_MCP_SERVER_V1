@@ -486,18 +486,47 @@ public static class PlanningService
     }
 
     public static async Task<string> GetMasterDataAsync(
-            string masterType,
-            string? searchFilter,
-            int pageNumber,
-            int pageSize)
+    string masterType,
+    string? searchFilter,
+    int pageNumber = 0,
+    int pageSize = 10)
     {
-        // TODO: Implement your HTTP call or database query to fetch master data
-        // Example calling your AiController/AiService endpoint:
-        // var response = await _httpClient.GetAsync($"api/ai/master-data?masterType={masterType}&searchFilter={searchFilter}&pageNumber={pageNumber}&pageSize={pageSize}");
-        // return await response.Content.ReadAsStringAsync();
+        try
+        {
+            var baseUrl = GetBaseUrl();
 
-        await Task.CompletedTask;
-        return "{\"success\":true,\"data\":[]}";
+            var queryBuilder = new StringBuilder();
+            queryBuilder.Append($"?masterType={Uri.EscapeDataString(masterType)}&pageNumber={pageNumber}&pageSize={pageSize}");
+
+            if (!string.IsNullOrWhiteSpace(searchFilter))
+                queryBuilder.Append($"&searchFilter={Uri.EscapeDataString(searchFilter)}");
+
+            var url = $"{baseUrl}/api/AI/master-data{queryBuilder}";
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            using var response = await client.GetAsync(url);
+
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    message = "No master data records could be found for this filter."
+                });
+            }
+
+            return content;
+        }
+        catch (Exception)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                success = false,
+                message = "The master data service is temporarily unreachable. Please try again shortly."
+            });
+        }
     }
 
     // Optional helper method to pass responses through if needed
