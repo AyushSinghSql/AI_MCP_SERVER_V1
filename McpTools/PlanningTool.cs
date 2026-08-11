@@ -360,6 +360,44 @@ Examples:
         }
 
         // =========================================================================
+        // 5. GET MASTER DATA
+        // =========================================================================
+        [McpServerTool, Description(@"
+Fetches master data records across core tables (such as entities, properties, units, or leases) with optional search filtering and pagination support.
+
+When to Use:
+- Use when users ask to look up, search, or list master data records like entity lists, property registries, unit inventories, or lease profiles.
+
+Parameters:
+- masterType: The master table category to query ('entity', 'property', 'unit', or 'lease').
+- searchFilter: Optional keyword/search term to match identifiers, names, codes, or tenant names.
+- pageNumber / pageSize: Pagination controls.
+
+Examples:
+- 'List all master properties matching Downtown'
+- 'Show entity master records'
+- 'Search leases for tenant Acme'
+")]
+        public static async Task<string> GetMasterDataAsync(
+            [Description("The type of master data to query ('entity', 'property', 'unit', or 'lease')")] string masterType,
+            [Description("Optional search filter for ID, name, code, or tenant")] string? searchFilter = null,
+            [Description("Page number (default 0)")] int pageNumber = 0,
+            [Description("Page size (default 10)")] int pageSize = 10)
+        {
+            try
+            {
+                searchFilter = CleanInput(searchFilter);
+
+                return await PlanningService.GetMasterDataAsync(
+                    masterType, searchFilter, pageNumber, pageSize);
+            }
+            catch (Exception)
+            {
+                return "{\"success\":false,\"message\":\"Master data query service is temporarily unavailable. Please try again later.\"}";
+            }
+        }
+
+        // =========================================================================
         // HELPER UTILITIES
         // =========================================================================
         private static string? CleanInput(string? value)

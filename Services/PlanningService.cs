@@ -485,6 +485,21 @@ public static class PlanningService
         }
     }
 
+    public static async Task<string> GetMasterDataAsync(
+            string masterType,
+            string? searchFilter,
+            int pageNumber,
+            int pageSize)
+    {
+        // TODO: Implement your HTTP call or database query to fetch master data
+        // Example calling your AiController/AiService endpoint:
+        // var response = await _httpClient.GetAsync($"api/ai/master-data?masterType={masterType}&searchFilter={searchFilter}&pageNumber={pageNumber}&pageSize={pageSize}");
+        // return await response.Content.ReadAsStringAsync();
+
+        await Task.CompletedTask;
+        return "{\"success\":true,\"data\":[]}";
+    }
+
     // Optional helper method to pass responses through if needed
     public static async Task<string> CallGeminiAsync(string data)
     {
